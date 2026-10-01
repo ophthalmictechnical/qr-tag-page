@@ -39,8 +39,10 @@
   if (location.hash.length <= 1) { fail('No tag data in this link.'); return; }
 
   try {
-    var LABELS = [['j','Job Code'],['d','Date'],['s','Status'],['c','Customer/Company Name'],
-                  ['m','Device Model'],['n','Serial Number'],['i','Issue Description'],['r','Notes / Remarks']];
+    var LABELS = [['j','Job Code'],['d','Date'],['s','Status'],['b','Serviced by'],
+              ['c','Customer/Company Name'],['m','Device Model'],['n','Serial Number'],
+              ['p','Spare Part Request'],['i','Issue Description'],['a','Action Taken'],
+              ['r','Notes / Remarks']];
     var b64 = location.hash.replace(/^#/, '').replace(/-/g,'+').replace(/_/g,'/');
     while (b64.length % 4) b64 += '=';
     var bin = atob(b64), bytes = new Uint8Array(bin.length);
