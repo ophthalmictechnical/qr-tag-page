@@ -2,6 +2,7 @@
 <html><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
 <title>Record Details</title>
 <style>
   body{margin:0;padding:16px;background:#f5f7fa;font-family:"Segoe UI",Tahoma,sans-serif}
@@ -11,12 +12,10 @@
   .row b{display:block;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
   .row span{white-space:pre-line;color:#202124}
   .msg{color:#c5221f}
-  .loading{color:#666}
 </style></head>
-<body><div class="card"><h1 id="title">Record Details</h1><div id="body"><p class="loading">Loading…</p></div></div>
+<body><div class="card"><h1 id="title">Record Details</h1><div id="body"></div></div>
 <script>
 (function () {
-  var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKcSPUeDFPFCz5XXwlkSap_7W1lyFxX4mOt3CibUYMEW2RzXLe9_fc1-1BNHm_n5TvSQ/exec';
   var body  = document.getElementById('body');
   var title = document.getElementById('title');
 
@@ -31,33 +30,23 @@
       row.appendChild(b); row.appendChild(s); body.appendChild(row);
     });
   }
-  function fail(msg) { body.innerHTML = '<p class="msg"></p>'; body.firstChild.textContent = msg; }
 
-  var job = new URLSearchParams(location.search).get('job');
-
-  // Old tags (printed before this change) still work: they carry data in the #hash.
-  if (!job && location.hash.length > 1) {
-    try {
-      var LABELS = [['j','Job Code'],['d','Date'],['s','Status'],['c','Customer/Company Name'],
-                    ['m','Device Model'],['n','Serial Number'],['i','Issue Description'],['r','Notes / Remarks']];
-      var b64 = location.hash.replace(/^#/, '').replace(/-/g,'+').replace(/_/g,'/');
-      while (b64.length % 4) b64 += '=';
-      var bin = atob(b64), bytes = new Uint8Array(bin.length);
-      for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-      var o = JSON.parse(new TextDecoder().decode(bytes));
-      render(o.t, LABELS.map(function (p) { return [p[1], o[p[0]]]; }));
-    } catch (e) { fail('Could not read this tag.'); }
-    return;
+  function fail(msg) {
+    body.innerHTML = '<p class="msg"></p>';
+    body.firstChild.textContent = msg;
   }
 
-  if (!job) { fail('No job code in this link.'); return; }
+  if (location.hash.length <= 1) { fail('No tag data in this link.'); return; }
 
-  fetch(APPS_SCRIPT_URL + '?page=tagdata&job=' + encodeURIComponent(job))
-    .then(function (r) { return r.json(); })
-    .then(function (res) {
-      if (!res.ok) { fail(res.error || 'Record not found.'); return; }
-      render(res.type, res.fields);
-    })
-    .catch(function () { fail('Could not load the record. Check your internet connection.'); });
+  try {
+    var LABELS = [['j','Job Code'],['d','Date'],['s','Status'],['c','Customer/Company Name'],
+                  ['m','Device Model'],['n','Serial Number'],['i','Issue Description'],['r','Notes / Remarks']];
+    var b64 = location.hash.replace(/^#/, '').replace(/-/g,'+').replace(/_/g,'/');
+    while (b64.length % 4) b64 += '=';
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+    var o = JSON.parse(new TextDecoder().decode(bytes));
+    render(o.t, LABELS.map(function (p) { return [p[1], o[p[0]]]; }));
+  } catch (e) { fail('Could not read this tag.'); }
 })();
 </script></body></html>
