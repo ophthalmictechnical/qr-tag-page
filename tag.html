@@ -12,23 +12,45 @@
   .row b{display:block;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
   .row span{white-space:pre-line;color:#202124}
   .msg{color:#c5221f}
+  .btns{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+  .btn{flex:1;min-width:140px;padding:12px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;color:#fff}
+  .btn-copy{background:#667eea}
+  .btn-copy.done{background:#0d6832}
+  .btn-finish{background:#1f9d63}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .status-msg{margin-top:10px;font-size:13px;display:none}
+  .status-msg.ok{color:#137333;display:block}
+  .status-msg.err{color:#c5221f;display:block}
 </style></head>
-<body><div class="card"><h1 id="title">Record Details</h1><div id="body"></div></div>
+<body>
+<div class="card">
+  <h1 id="title">Record Details</h1>
+  <div id="body"></div>
+  <div class="btns" id="btns" style="display:none">
+    <button class="btn btn-copy" id="copyBtn">📋 Copy Details</button>
+    <button class="btn btn-finish" id="finishBtn" style="display:none">✅ Finish Repair</button>
+  </div>
+  <div class="status-msg" id="statusMsg"></div>
+</div>
 <script>
 (function () {
+  var APP_URL = 'https://script.google.com/macros/s/AKfycbzKcSPUeDFPFCz5XXwlkSap_7W1lyFxX4mOt3CibUYMEW2RzXLe9_fc1-1BNHm_n5TvSQ/exec';
   var body  = document.getElementById('body');
   var title = document.getElementById('title');
+  var current = { type: '', fields: [] };
 
   function render(type, fields) {
+    current = { type: type, fields: fields.filter(function (f) { return f[1]; }) };
     title.textContent = (type === 'IO' ? 'Internal Operation' : 'In House Equipment') + ' — Record Details';
     body.innerHTML = '';
-    fields.forEach(function (f) {
-      if (!f[1]) return;
+    current.fields.forEach(function (f) {
       var row = document.createElement('div'); row.className = 'row';
       var b = document.createElement('b'); b.textContent = f[0];
       var s = document.createElement('span'); s.textContent = f[1];
       row.appendChild(b); row.appendChild(s); body.appendChild(row);
     });
+    document.getElementById('btns').style.display = 'flex';
+    document.getElementById('finishBtn').style.display = (type === 'IO') ? 'block' : 'none';
   }
 
   function fail(msg) {
@@ -36,6 +58,65 @@
     body.firstChild.textContent = msg;
   }
 
+  function getField(label) {
+    var f = current.fields.filter(function (x) { return x[0] === label; })[0];
+    return f ? f[1] : '';
+  }
+
+  function showMsg(cls, text) {
+    var m = document.getElementById('statusMsg');
+    m.className = 'status-msg ' + cls; m.textContent = text;
+  }
+
+  // ── Copy Details ──
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var btn = this;
+    var text = current.fields.map(function (f) { return f[0] + ': ' + f[1]; }).join('\n');
+    function done(ok) {
+      btn.textContent = ok ? '✓ Copied!' : '✕ Failed';
+      btn.classList.toggle('done', ok);
+      setTimeout(function () { btn.textContent = '📋 Copy Details'; btn.classList.remove('done'); }, 1500);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta); done(ok);
+    }
+  });
+
+  // ── Finish Repair (no PIN) ──
+  document.getElementById('finishBtn').addEventListener('click', function () {
+    var btn = this;
+    var job = getField('Job Code');
+    if (!job) { showMsg('err', 'No job code found.'); return; }
+    if (!confirm('Mark ' + job + ' as "Finish Repair & Wait for delivery arrangement"?')) return;
+
+    btn.disabled = true; btn.textContent = '⏳ Saving…';
+    fetch(APP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'finishRepair', job: job })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      btn.disabled = false; btn.textContent = '✅ Finish Repair';
+      if (!res.ok) { showMsg('err', res.error || 'Failed.'); return; }
+      showMsg('ok', '✓ ' + job + ' status updated to: ' + res.status);
+      body.querySelectorAll('.row').forEach(function (r) {
+        if (r.querySelector('b').textContent === 'Status') r.querySelector('span').textContent = res.status;
+      });
+      current.fields.forEach(function (f) { if (f[0] === 'Status') f[1] = res.status; });
+    })
+    .catch(function (e) {
+      btn.disabled = false; btn.textContent = '✅ Finish Repair';
+      showMsg('err', 'Network error: ' + e.message);
+    });
+  });
+
+  // ── Read the tag data from the QR link ──
   if (location.hash.length <= 1) { fail('No tag data in this link.'); return; }
 
   try {
