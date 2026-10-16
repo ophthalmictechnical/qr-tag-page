@@ -118,10 +118,6 @@
     });
   });
 
-  // ── Live status: replaces only the Status line, refreshed from the sheet ──
-  var POLL_MS = 30000;
-  var liveTimer = null;
-
   var liveBadge = document.createElement('div');
   liveBadge.style.cssText = 'font-size:12px;color:#666;margin-top:12px';
   document.getElementById('btns').insertAdjacentElement('beforebegin', liveBadge);
@@ -160,12 +156,7 @@
   }
 
   function startLive() {
-    refreshStatus();
-    clearInterval(liveTimer);
-    liveTimer = setInterval(refreshStatus, POLL_MS);
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) refreshStatus();   // refresh when the person returns to the tab
-    });
+    refreshStatus();   // one check each time the page loads or is refreshed
   }
   
   // ── Read the tag data from the QR link ──
