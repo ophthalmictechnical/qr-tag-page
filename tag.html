@@ -145,14 +145,20 @@
   function refreshStatus() {
     var job = getField('Job Code');
     if (!job) return;
-    fetch(APP_URL + '?page=tagstatus&job=' + encodeURIComponent(job) + '&_=' + Date.now())
-      .then(function (r) { return r.json(); })
-      .then(function (res) {
-        if (!res.ok) { liveBadge.textContent = '⚠️ Could not refresh status'; setLiveStatus('Unavailable'); return; }
+        fetch(APP_URL + '?page=tagstatus&job=' + encodeURIComponent(job) + '&_=' + Date.now())
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        var res;
+        try { res = JSON.parse(t); }
+        catch (e) { throw new Error('Not JSON: ' + t.slice(0, 60).replace(/\s+/g, ' ')); }
+        if (!res.ok) { liveBadge.textContent = '⚠️ ' + (res.error || 'Could not refresh status'); setLiveStatus('Unavailable'); return; }
         setLiveStatus(res.status);
         liveBadge.textContent = '🟢 Live status · updated ' + new Date().toLocaleTimeString();
       })
-      .catch(function () { liveBadge.textContent = '⚠️ Offline: could not load the latest status'; setLiveStatus('Unavailable'); });
+      .catch(function (e) {
+        liveBadge.textContent = '⚠️ ' + e.message;
+        setLiveStatus('Unavailable');
+      });
   }
 
   function startLive() {
