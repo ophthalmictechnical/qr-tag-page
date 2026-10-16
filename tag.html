@@ -117,6 +117,56 @@
     });
   });
 
+  // ── Live status: replaces only the Status line, refreshed from the sheet ──
+  var POLL_MS = 30000;
+  var liveTimer = null;
+
+  var liveBadge = document.createElement('div');
+  liveBadge.style.cssText = 'font-size:12px;color:#666;margin-top:12px';
+  document.getElementById('btns').insertAdjacentElement('beforebegin', liveBadge);
+
+  function setLiveStatus(status) {
+    var found = false;
+    body.querySelectorAll('.row').forEach(function (r) {
+      if (r.querySelector('b').textContent === 'Status') {
+        r.querySelector('span').textContent = status;
+        found = true;
+      }
+    });
+    if (!found && status) {   // QR had no status, so add the row
+      var row = document.createElement('div'); row.className = 'row';
+      var b = document.createElement('b'); b.textContent = 'Status';
+      var s = document.createElement('span'); s.textContent = status;
+      row.appendChild(b); row.appendChild(s);
+      body.insertBefore(row, body.children[1] || null);
+    }
+    var hit = false;
+    current.fields.forEach(function (f) { if (f[0] === 'Status') { f[1] = status; hit = true; } });
+    if (!hit && status) current.fields.splice(1, 0, ['Status', status]);
+  }
+
+  function refreshStatus() {
+    var job = getField('Job Code');
+    if (!job) return;
+    fetch(APP_URL + '?page=tagstatus&job=' + encodeURIComponent(job) + '&_=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.ok) { liveBadge.textContent = '⚠️ Could not refresh status'; return; }
+        setLiveStatus(res.status);
+        liveBadge.textContent = '🟢 Live status · updated ' + new Date().toLocaleTimeString();
+      })
+      .catch(function () { liveBadge.textContent = '⚠️ Offline: showing status from when the tag was printed'; });
+  }
+
+  function startLive() {
+    refreshStatus();
+    clearInterval(liveTimer);
+    liveTimer = setInterval(refreshStatus, POLL_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) refreshStatus();   // refresh when the person returns to the tab
+    });
+  }
+  
   // ── Read the tag data from the QR link ──
   if (location.hash.length <= 1) { fail('No tag data in this link.'); return; }
 
@@ -131,6 +181,7 @@
     for (var k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
     var o = JSON.parse(new TextDecoder().decode(bytes));
     render(o.t, LABELS.map(function (p) { return [p[1], o[p[0]]]; }));
+    startLive();
   } catch (e) { fail('Could not read this tag.'); }
 })();
 </script></body></html>
