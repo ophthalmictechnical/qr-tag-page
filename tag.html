@@ -97,7 +97,11 @@
 
     btn.disabled = true; btn.textContent = '⏳ Saving…';
     fetch(APP_URL + '?page=finishrepair&job=' + encodeURIComponent(job))
-    .then(function (r) { return r.json(); })
+    .then(function (r) { return r.text(); })
+    .then(function (t) {
+      try { return JSON.parse(t); }
+      catch (e) { throw new Error('Server did not return JSON. Check the deployment is "Anyone" and up to date.'); }
+    })
     .then(function (res) {
       btn.disabled = false; btn.textContent = '✅ Finish Repair';
       if (!res.ok) { showMsg('err', res.error || 'Failed.'); return; }
