@@ -40,6 +40,7 @@
   var current = { type: '', fields: [] };
 
   function render(type, fields) {
+    fields = fields.map(function (f) { return f[0] === 'Status' ? ['Status', 'Loading…'] : f; });
     current = { type: type, fields: fields.filter(function (f) { return f[1]; }) };
     title.textContent = (type === 'IO' ? 'Internal Operation' : 'In House Equipment') + ' — Record Details';
     body.innerHTML = '';
