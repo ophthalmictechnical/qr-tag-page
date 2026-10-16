@@ -152,11 +152,11 @@
     fetch(APP_URL + '?page=tagstatus&job=' + encodeURIComponent(job) + '&_=' + Date.now())
       .then(function (r) { return r.json(); })
       .then(function (res) {
-        if (!res.ok) { liveBadge.textContent = '⚠️ Could not refresh status'; return; }
+        if (!res.ok) { liveBadge.textContent = '⚠️ Could not refresh status'; setLiveStatus('Unavailable'); return; }
         setLiveStatus(res.status);
         liveBadge.textContent = '🟢 Live status · updated ' + new Date().toLocaleTimeString();
       })
-      .catch(function () { liveBadge.textContent = '⚠️ Offline: showing status from when the tag was printed'; });
+      .catch(function () { liveBadge.textContent = '⚠️ Offline: could not load the latest status'; setLiveStatus('Unavailable'); });
   }
 
   function startLive() {
