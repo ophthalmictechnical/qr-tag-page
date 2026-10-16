@@ -51,7 +51,7 @@
       row.appendChild(b); row.appendChild(s); body.appendChild(row);
     });
     document.getElementById('btns').style.display = 'flex';
-    document.getElementById('finishBtn').style.display = (type === 'IO') ? 'block' : 'none';
+    document.getElementById('finishBtn').style.display = 'block';
   }
 
   function fail(msg) {
@@ -94,8 +94,9 @@
     var btn = this;
     var job = getField('Job Code');
     if (!job) { showMsg('err', 'No job code found.'); return; }
-    if (!confirm('Mark ' + job + ' as "Finish Repair & Wait for delivery arrangement"?')) return;
-
+    var targetLabel = /^IH-/i.test(job) ? 'Completed' : 'Finish Repair & Wait for delivery arrangement';
+    if (!confirm('Mark ' + job + ' as "' + targetLabel + '"?')) return;
+    
     btn.disabled = true; btn.textContent = '⏳ Saving…';
     fetch(APP_URL + '?page=finishrepair&job=' + encodeURIComponent(job))
     .then(function (r) { return r.text(); })
