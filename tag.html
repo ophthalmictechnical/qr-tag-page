@@ -54,9 +54,7 @@
   <div class="btns" id="btns" style="display:none">
     <button class="btn btn-copy" id="copyBtn">📋 Copy Details</button>
     <button class="btn btn-finish" id="finishBtn" style="display:none">✅ Finish Repair</button>
-    <button class="btn btn-spare" id="spareBtn" style="display:none">🔧 Spare Part Request</button>
-    <button class="btn btn-info" id="infoBtn" style="display:none">📄 DO / Job Sheet / Purchase Date</button>
-  </div>
+    <button class="btn btn-spare" id="spareBtn" style="display:none">🔧 Spare Part Request</button>  </div>
 
   <div class="spare-form" id="spareForm">
     <h2>🔧 Spare Part Request</h2>
@@ -98,9 +96,7 @@
     document.getElementById('btns').style.display = 'flex';
     document.getElementById('finishBtn').style.display = 'block';
     // Spare Part Request only applies to Internal Operation records
-    document.getElementById('spareBtn').style.display = (type === 'IO') ? 'block' : 'none';
-    document.getElementById('infoBtn').style.display = (type === 'IO') ? 'block' : 'none';
-  }
+    document.getElementById('spareBtn').style.display = (type === 'IO') ? 'block' : 'none';  }
 
   function fail(msg) {
     body.innerHTML = '<p class="msg"></p>';
@@ -259,10 +255,9 @@
     return row;
   }
 
-  document.getElementById('infoBtn').addEventListener('click', function () {
-    if (infoPanel.classList.contains('show')) { infoPanel.classList.remove('show'); return; }
+  function loadDoInfo() {
     var job = getField('Job Code');
-    if (!job) { showMsg('err', 'No job code found.'); return; }
+    if (!job || current.type !== 'IO') return;
 
     infoPanel.classList.add('show');
     infoBody.textContent = '⏳ Loading…';
@@ -280,7 +275,7 @@
       infoBody.appendChild(infoRow('Purchase Date', res.purchaseDate));
     })
     .catch(function (e) { infoBody.textContent = '⚠️ ' + e.message; });
-  });
+  }
 
   var liveBadge = document.createElement('div');
   liveBadge.style.cssText = 'font-size:12px;color:#666;margin-top:12px';
@@ -327,6 +322,7 @@
 
   function startLive() {
     refreshStatus();   // one check each time the page loads or is refreshed
+    loadDoInfo();      // live DO / Job Sheet / Purchase Date (Internal Operation tags only)
   }
   
   // ── Read the tag data from the QR link ──
