@@ -17,10 +17,24 @@
   .btn-copy{background:#667eea}
   .btn-copy.done{background:#0d6832}
   .btn-finish{background:#1f9d63}
+  .btn-spare{background:#e8710a}
   .btn:disabled{opacity:.6;cursor:wait}
   .status-msg{margin-top:10px;font-size:13px;display:none}
   .status-msg.ok{color:#137333;display:block}
   .status-msg.err{color:#c5221f;display:block}
+
+  /* Spare Part Request form */
+  .spare-form{display:none;margin-top:14px;padding:14px;border:1px solid #f3c99a;background:#fff8f0;border-radius:8px}
+  .spare-form.show{display:block}
+  .spare-form h2{font-size:.95em;color:#8a4b00;margin:0 0 10px}
+  .spare-form label{display:block;font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px}
+  .spare-form label small{text-transform:none;font-weight:400;letter-spacing:0;color:#999}
+  .spare-form input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #dadce0;border-radius:6px;font-size:14px;font-family:inherit}
+  .spare-form input:focus{outline:none;border-color:#e8710a}
+  .spare-actions{display:flex;gap:10px;margin-top:14px}
+  .spare-actions .btn{min-width:0}
+  .btn-submit{background:#e8710a}
+  .btn-cancel{background:#f0f0f0;color:#444}
 </style></head>
 <body>
 <div class="card">
@@ -29,7 +43,21 @@
   <div class="btns" id="btns" style="display:none">
     <button class="btn btn-copy" id="copyBtn">📋 Copy Details</button>
     <button class="btn btn-finish" id="finishBtn" style="display:none">✅ Finish Repair</button>
+    <button class="btn btn-spare" id="spareBtn" style="display:none">🔧 Spare Part Request</button>
   </div>
+
+  <div class="spare-form" id="spareForm">
+    <h2>🔧 Spare Part Request</h2>
+    <label for="spareName">Spare Part Name</label>
+    <input type="text" id="spareName" maxlength="200" autocomplete="off" placeholder="e.g. Optical Module">
+    <label for="spareNumber">Spare Part Number <small>(optional)</small></label>
+    <input type="text" id="spareNumber" maxlength="100" autocomplete="off" placeholder="e.g. 80005-203-002D">
+    <div class="spare-actions">
+      <button class="btn btn-cancel" id="spareCancelBtn" type="button">Cancel</button>
+      <button class="btn btn-submit" id="spareSubmitBtn" type="button">Submit</button>
+    </div>
+  </div>
+
   <div class="status-msg" id="statusMsg"></div>
 </div>
 <script>
@@ -52,6 +80,8 @@
     });
     document.getElementById('btns').style.display = 'flex';
     document.getElementById('finishBtn').style.display = 'block';
+    // Spare Part Request only applies to Internal Operation records
+    document.getElementById('spareBtn').style.display = (type === 'IO') ? 'block' : 'none';
   }
 
   function fail(msg) {
@@ -67,6 +97,36 @@
   function showMsg(cls, text) {
     var m = document.getElementById('statusMsg');
     m.className = 'status-msg ' + cls; m.textContent = text;
+  }
+
+  // Update (or add) a displayed field by label
+  function setField(label, value) {
+    var found = false;
+    body.querySelectorAll('.row').forEach(function (r) {
+      if (r.querySelector('b').textContent === label) {
+        r.querySelector('span').textContent = value;
+        found = true;
+      }
+    });
+    if (!found && value) {
+      var row = document.createElement('div'); row.className = 'row';
+      var b = document.createElement('b'); b.textContent = label;
+      var s = document.createElement('span'); s.textContent = value;
+      row.appendChild(b); row.appendChild(s);
+      var statusRow = null;
+      body.querySelectorAll('.row').forEach(function (r) {
+        if (r.querySelector('b').textContent === 'Status') statusRow = r;
+      });
+      if (statusRow && statusRow.nextSibling) body.insertBefore(row, statusRow.nextSibling);
+      else body.appendChild(row);
+    }
+    var hit = false;
+    current.fields.forEach(function (f) { if (f[0] === label) { f[1] = value; hit = true; } });
+    if (!hit && value) {
+      var idx = -1;
+      current.fields.forEach(function (f, i) { if (f[0] === 'Status') idx = i; });
+      current.fields.splice(idx + 1, 0, [label, value]);
+    }
   }
 
   // ── Copy Details ──
@@ -108,13 +168,60 @@
       btn.disabled = false; btn.textContent = '✅ Finish Repair';
       if (!res.ok) { showMsg('err', res.error || 'Failed.'); return; }
       showMsg('ok', '✓ ' + job + ' status updated to: ' + res.status);
-      body.querySelectorAll('.row').forEach(function (r) {
-        if (r.querySelector('b').textContent === 'Status') r.querySelector('span').textContent = res.status;
-      });
-      current.fields.forEach(function (f) { if (f[0] === 'Status') f[1] = res.status; });
+      setField('Status', res.status);
     })
     .catch(function (e) {
       btn.disabled = false; btn.textContent = '✅ Finish Repair';
+      showMsg('err', 'Network error: ' + e.message);
+    });
+  });
+
+  // ── Spare Part Request ──
+  var spareForm = document.getElementById('spareForm');
+  var spareName = document.getElementById('spareName');
+  var spareNumber = document.getElementById('spareNumber');
+  var spareSubmit = document.getElementById('spareSubmitBtn');
+
+  document.getElementById('spareBtn').addEventListener('click', function () {
+    spareForm.classList.toggle('show');
+    if (spareForm.classList.contains('show')) {
+      spareForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      spareName.focus();
+    }
+  });
+
+  document.getElementById('spareCancelBtn').addEventListener('click', function () {
+    spareForm.classList.remove('show');
+    spareName.value = ''; spareNumber.value = '';
+  });
+
+  spareSubmit.addEventListener('click', function () {
+    var job = getField('Job Code');
+    var name = spareName.value.trim();
+    var number = spareNumber.value.trim();
+    if (!job) { showMsg('err', 'No job code found.'); return; }
+    if (!name) { showMsg('err', 'Please enter the spare part name.'); spareName.focus(); return; }
+
+    spareSubmit.disabled = true; spareSubmit.textContent = '⏳ Saving…';
+    fetch(APP_URL + '?page=sparepart&job=' + encodeURIComponent(job) +
+          '&name=' + encodeURIComponent(name) +
+          '&number=' + encodeURIComponent(number))
+    .then(function (r) { return r.text(); })
+    .then(function (t) {
+      try { return JSON.parse(t); }
+      catch (e) { throw new Error('Server did not return JSON. Check the deployment is "Anyone" and up to date.'); }
+    })
+    .then(function (res) {
+      spareSubmit.disabled = false; spareSubmit.textContent = 'Submit';
+      if (!res.ok) { showMsg('err', res.error || 'Failed.'); return; }
+      showMsg('ok', '✓ ' + job + ' status updated to: ' + res.status);
+      setField('Status', res.status);
+      setField('Spare Part Request', res.sparePartRequest);
+      spareName.value = ''; spareNumber.value = '';
+      spareForm.classList.remove('show');
+    })
+    .catch(function (e) {
+      spareSubmit.disabled = false; spareSubmit.textContent = 'Submit';
       showMsg('err', 'Network error: ' + e.message);
     });
   });
