@@ -18,7 +18,11 @@
   .btn-copy.done{background:#0d6832}
   .btn-finish{background:#1f9d63}
   .btn-spare{background:#e8710a}
-  .btn-info{background:#0e7490}
+  .btn-status{background:#6d4c9f}
+  .spare-form select{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #dadce0;border-radius:6px;font-size:14px;font-family:inherit;background:#fff}
+  .status-form{border-color:#cdbfe6;background:#f7f3fd}
+  .status-form h2{color:#4a2f7d}
+  .status-form .btn-submit{background:#6d4c9f}
 
   /* DO / Job Sheet / Purchase Date panel */
   .info-panel{display:none;margin-top:14px;padding:14px;border:1px solid #a5d8e6;background:#f0fafd;border-radius:8px}
@@ -51,10 +55,15 @@
 <div class="card">
   <h1 id="title">Record Details</h1>
   <div id="body"></div>
+  <div class="info-panel" id="infoPanel">
+    <h2>📄 DO / Job Sheet / Purchase Date</h2>
+    <div id="infoBody"></div>
+  </div>
   <div class="btns" id="btns" style="display:none">
     <button class="btn btn-copy" id="copyBtn">📋 Copy Details</button>
     <button class="btn btn-finish" id="finishBtn" style="display:none">✅ Finish Repair</button>
-    <button class="btn btn-spare" id="spareBtn" style="display:none">🔧 Spare Part Request</button>  </div>
+    <button class="btn btn-spare" id="spareBtn" style="display:none">🔧 Spare Part Request</button>
+    <button class="btn btn-status" id="statusBtn" style="display:none">🔄 Update Status</button>  </div>
 
   <div class="spare-form" id="spareForm">
     <h2>🔧 Spare Part Request</h2>
@@ -68,9 +77,14 @@
     </div>
   </div>
 
-  <div class="info-panel" id="infoPanel">
-    <h2>📄 DO / Job Sheet / Purchase Date</h2>
-    <div id="infoBody"></div>
+  <div class="spare-form status-form" id="statusForm">
+    <h2>🔄 Update Status</h2>
+    <label for="statusSelect">New Status</label>
+    <select id="statusSelect"></select>
+    <div class="spare-actions">
+      <button class="btn btn-cancel" id="statusCancelBtn" type="button">Cancel</button>
+      <button class="btn btn-submit" id="statusSubmitBtn" type="button">Update</button>
+    </div>
   </div>
 
   <div class="status-msg" id="statusMsg"></div>
@@ -96,7 +110,8 @@
     document.getElementById('btns').style.display = 'flex';
     document.getElementById('finishBtn').style.display = 'block';
     // Spare Part Request only applies to Internal Operation records
-    document.getElementById('spareBtn').style.display = (type === 'IO') ? 'block' : 'none';  }
+    document.getElementById('spareBtn').style.display = (type === 'IO') ? 'block' : 'none';
+    document.getElementById('statusBtn').style.display = (type === 'IO') ? 'block' : 'none';  }
 
   function fail(msg) {
     body.innerHTML = '<p class="msg"></p>';
@@ -197,6 +212,7 @@
   var spareSubmit = document.getElementById('spareSubmitBtn');
 
   document.getElementById('spareBtn').addEventListener('click', function () {
+    document.getElementById('statusForm').classList.remove('show');
     spareForm.classList.toggle('show');
     if (spareForm.classList.contains('show')) {
       spareForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -240,6 +256,55 @@
     });
   });
 
+  // ── Update Status (everything except Finish Repair / In Progress / Waiting for Spare Part) ──
+  var STATUS_CHOICES = ['Completed', 'Awaiting Manufacturer Repair', 'Unable to Repair & Sent Back',
+                        'Reconditioned Unit', 'Pending PO'];
+  var statusForm   = document.getElementById('statusForm');
+  var statusSelect = document.getElementById('statusSelect');
+  var statusSubmit = document.getElementById('statusSubmitBtn');
+
+  STATUS_CHOICES.forEach(function (s) {
+    var o = document.createElement('option'); o.value = s; o.textContent = s;
+    statusSelect.appendChild(o);
+  });
+
+  document.getElementById('statusBtn').addEventListener('click', function () {
+    spareForm.classList.remove('show');
+    statusForm.classList.toggle('show');
+    if (statusForm.classList.contains('show')) statusForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  document.getElementById('statusCancelBtn').addEventListener('click', function () {
+    statusForm.classList.remove('show');
+  });
+
+  statusSubmit.addEventListener('click', function () {
+    var job = getField('Job Code');
+    var status = statusSelect.value;
+    if (!job) { showMsg('err', 'No job code found.'); return; }
+    if (!confirm('Change ' + job + ' status to "' + status + '"?')) return;
+
+    statusSubmit.disabled = true; statusSubmit.textContent = '⏳ Saving…';
+    fetch(APP_URL + '?page=updatestatus&job=' + encodeURIComponent(job) +
+          '&status=' + encodeURIComponent(status))
+    .then(function (r) { return r.text(); })
+    .then(function (t) {
+      try { return JSON.parse(t); }
+      catch (e) { throw new Error('Server did not return JSON. Check the deployment is "Anyone" and up to date.'); }
+    })
+    .then(function (res) {
+      statusSubmit.disabled = false; statusSubmit.textContent = 'Update';
+      if (!res.ok) { showMsg('err', res.error || 'Failed.'); return; }
+      showMsg('ok', '✓ ' + job + ' status updated to: ' + res.status);
+      setField('Status', res.status);
+      statusForm.classList.remove('show');
+    })
+    .catch(function (e) {
+      statusSubmit.disabled = false; statusSubmit.textContent = 'Update';
+      showMsg('err', 'Network error: ' + e.message);
+    });
+  });
+
   // ── DO / Job Sheet / Purchase Date (live) ──
   var infoPanel = document.getElementById('infoPanel');
   var infoBody  = document.getElementById('infoBody');
@@ -279,7 +344,7 @@
 
   var liveBadge = document.createElement('div');
   liveBadge.style.cssText = 'font-size:12px;color:#666;margin-top:12px';
-  document.getElementById('btns').insertAdjacentElement('beforebegin', liveBadge);
+  document.getElementById('infoPanel').insertAdjacentElement('beforebegin', liveBadge);
 
   function setLiveStatus(status) {
     var found = false;
