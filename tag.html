@@ -18,6 +18,17 @@
   .btn-copy.done{background:#0d6832}
   .btn-finish{background:#1f9d63}
   .btn-spare{background:#e8710a}
+  .btn-info{background:#0e7490}
+
+  /* DO / Job Sheet / Purchase Date panel */
+  .info-panel{display:none;margin-top:14px;padding:14px;border:1px solid #a5d8e6;background:#f0fafd;border-radius:8px}
+  .info-panel.show{display:block}
+  .info-panel h2{font-size:.95em;color:#0e5566;margin:0 0 10px}
+  .info-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #dff0f5;font-size:14px}
+  .info-row:last-child{border-bottom:none}
+  .info-row b{color:#666;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
+  .info-row span{color:#202124;text-align:right;word-break:break-word}
+  .info-row span.na{color:#c5221f;font-style:italic}
   .btn:disabled{opacity:.6;cursor:wait}
   .status-msg{margin-top:10px;font-size:13px;display:none}
   .status-msg.ok{color:#137333;display:block}
@@ -44,6 +55,7 @@
     <button class="btn btn-copy" id="copyBtn">📋 Copy Details</button>
     <button class="btn btn-finish" id="finishBtn" style="display:none">✅ Finish Repair</button>
     <button class="btn btn-spare" id="spareBtn" style="display:none">🔧 Spare Part Request</button>
+    <button class="btn btn-info" id="infoBtn" style="display:none">📄 DO / Job Sheet / Purchase Date</button>
   </div>
 
   <div class="spare-form" id="spareForm">
@@ -56,6 +68,11 @@
       <button class="btn btn-cancel" id="spareCancelBtn" type="button">Cancel</button>
       <button class="btn btn-submit" id="spareSubmitBtn" type="button">Submit</button>
     </div>
+  </div>
+
+  <div class="info-panel" id="infoPanel">
+    <h2>📄 DO / Job Sheet / Purchase Date</h2>
+    <div id="infoBody"></div>
   </div>
 
   <div class="status-msg" id="statusMsg"></div>
@@ -82,6 +99,7 @@
     document.getElementById('finishBtn').style.display = 'block';
     // Spare Part Request only applies to Internal Operation records
     document.getElementById('spareBtn').style.display = (type === 'IO') ? 'block' : 'none';
+    document.getElementById('infoBtn').style.display = (type === 'IO') ? 'block' : 'none';
   }
 
   function fail(msg) {
@@ -224,6 +242,44 @@
       spareSubmit.disabled = false; spareSubmit.textContent = 'Submit';
       showMsg('err', 'Network error: ' + e.message);
     });
+  });
+
+  // ── DO / Job Sheet / Purchase Date (live) ──
+  var infoPanel = document.getElementById('infoPanel');
+  var infoBody  = document.getElementById('infoBody');
+
+  function infoRow(label, value) {
+    var row = document.createElement('div'); row.className = 'info-row';
+    var b = document.createElement('b'); b.textContent = label;
+    var s = document.createElement('span');
+    var v = String(value || '').trim();
+    if (!v || v.toUpperCase() === 'N/A') { s.textContent = 'Unavailable'; s.className = 'na'; }
+    else { s.textContent = v; }
+    row.appendChild(b); row.appendChild(s);
+    return row;
+  }
+
+  document.getElementById('infoBtn').addEventListener('click', function () {
+    if (infoPanel.classList.contains('show')) { infoPanel.classList.remove('show'); return; }
+    var job = getField('Job Code');
+    if (!job) { showMsg('err', 'No job code found.'); return; }
+
+    infoPanel.classList.add('show');
+    infoBody.textContent = '⏳ Loading…';
+    fetch(APP_URL + '?page=doinfo&job=' + encodeURIComponent(job) + '&_=' + Date.now())
+    .then(function (r) { return r.text(); })
+    .then(function (t) {
+      try { return JSON.parse(t); }
+      catch (e) { throw new Error('Server did not return JSON. Check the deployment is up to date.'); }
+    })
+    .then(function (res) {
+      if (!res.ok) { infoBody.textContent = '⚠️ ' + (res.error || 'Could not load.'); return; }
+      infoBody.innerHTML = '';
+      infoBody.appendChild(infoRow('Job Sheet No.', res.jobSheetNo));
+      infoBody.appendChild(infoRow('DO No.', res.doNo));
+      infoBody.appendChild(infoRow('Purchase Date', res.purchaseDate));
+    })
+    .catch(function (e) { infoBody.textContent = '⚠️ ' + e.message; });
   });
 
   var liveBadge = document.createElement('div');
