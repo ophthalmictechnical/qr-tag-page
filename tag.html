@@ -110,8 +110,10 @@
     document.getElementById('btns').style.display = 'flex';
     document.getElementById('finishBtn').style.display = 'block';
     // Spare Part Request only applies to Internal Operation records
-    document.getElementById('spareBtn').style.display = (type === 'IO') ? 'block' : 'none';
-    document.getElementById('statusBtn').style.display = (type === 'IO') ? 'block' : 'none';  }
+    document.getElementById('spareBtn').style.display = 'block';
+    document.getElementById('statusBtn').style.display = 'block';
+    buildStatusOptions(type);
+  }
 
   function fail(msg) {
     body.innerHTML = '<p class="msg"></p>';
@@ -255,18 +257,25 @@
       showMsg('err', 'Network error: ' + e.message);
     });
   });
-
+  
   // ── Update Status (everything except Finish Repair / In Progress / Waiting for Spare Part) ──
-  var STATUS_CHOICES = ['Completed', 'Awaiting Manufacturer Repair', 'Unable to Repair & Sent Back',
-                        'Reconditioned Unit', 'Pending PO'];
+  var STATUS_CHOICES_IO = ['Completed', 'Awaiting Manufacturer Repair', 'Unable to Repair & Sent Back',
+                           'Reconditioned Unit', 'Pending PO'];
+  var STATUS_CHOICES_IH = ['Available', 'Missing', 'Unable to Fix', 'Completed'];
   var statusForm   = document.getElementById('statusForm');
   var statusSelect = document.getElementById('statusSelect');
   var statusSubmit = document.getElementById('statusSubmitBtn');
 
-  STATUS_CHOICES.forEach(function (s) {
-    var o = document.createElement('option'); o.value = s; o.textContent = s;
-    statusSelect.appendChild(o);
-  });
+  function buildStatusOptions(type) {
+    var list = (type === 'IH') ? STATUS_CHOICES_IH : STATUS_CHOICES_IO;
+    statusSelect.innerHTML = '';
+    list.forEach(function (s) {
+      var o = document.createElement('option'); o.value = s; o.textContent = s;
+      statusSelect.appendChild(o);
+    });
+  }
+
+  document.getElementById('statusBtn').addEventListener('click', function () {
 
   document.getElementById('statusBtn').addEventListener('click', function () {
     spareForm.classList.remove('show');
