@@ -92,6 +92,14 @@
 <script>
 (function () {
   var APP_URL = 'https://script.google.com/macros/s/AKfycbzKcSPUeDFPFCz5XXwlkSap_7W1lyFxX4mOt3CibUYMEW2RzXLe9_fc1-1BNHm_n5TvSQ/exec';
+  var JOBSCOPE_URL = 'PASTE_YOUR_JOBSCOPE_EXEC_URL_HERE';
+  function notify(job, status, part) {
+    try {
+      fetch(JOBSCOPE_URL + '?page=notify&job=' + encodeURIComponent(job) +
+            '&status=' + encodeURIComponent(status || '') +
+            '&part=' + encodeURIComponent(part || ''), { mode: 'no-cors' }).catch(function () {});
+    } catch (e) {}
+  }
   var body  = document.getElementById('body');
   var title = document.getElementById('title');
   var current = { type: '', fields: [] };
@@ -200,6 +208,7 @@
       if (!res.ok) { showMsg('err', res.error || 'Failed.'); return; }
       showMsg('ok', '✓ ' + job + ' status updated to: ' + res.status);
       setField('Status', res.status);
+      notify(job, res.status);
     })
     .catch(function (e) {
       btn.disabled = false; btn.textContent = '✅ Finish Repair';
@@ -249,6 +258,7 @@
       showMsg('ok', '✓ ' + job + ' status updated to: ' + res.status);
       setField('Status', res.status);
       setField('Spare Part Request', res.sparePartRequest);
+      notify(job, res.status, name);
       spareName.value = ''; spareNumber.value = '';
       spareForm.classList.remove('show');
     })
@@ -304,6 +314,7 @@
       if (!res.ok) { showMsg('err', res.error || 'Failed.'); return; }
       showMsg('ok', '✓ ' + job + ' status updated to: ' + res.status);
       setField('Status', res.status);
+      notify(job, res.status);
       statusForm.classList.remove('show');
     })
     .catch(function (e) {
