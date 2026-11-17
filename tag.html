@@ -193,7 +193,7 @@
     var btn = this;
     var job = getField('Job Code');
     if (!job) { showMsg('err', 'No job code found.'); return; }
-    var targetLabel = /^IH-/i.test(job) ? 'Completed' : 'Finish Repair & Wait for delivery arrangement';
+    var targetLabel = /^IH-/i.test(job) ? 'Finish Repair' : 'Finish Repair & Wait for delivery arrangement';
     if (!confirm('Mark ' + job + ' as "' + targetLabel + '"?')) return;
     
     btn.disabled = true; btn.textContent = '⏳ Saving…';
